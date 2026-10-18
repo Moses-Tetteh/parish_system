@@ -20,7 +20,6 @@ const TILES: { key: string; label: string; sac?: string; nav?: string }[] = [
   { key: "catechesis_teachers", label: "Catechist", nav: "users" },
   { key: "counsellors", label: "Marriage Counsellors", nav: "message" },
   { key: "parishioners", label: "Parishioners", nav: "users" },
-  { key: "mass_intentions", label: "Mass Intentions", nav: "calendar" },
 ];
 
 export default async function Dashboard() {

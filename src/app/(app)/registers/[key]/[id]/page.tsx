@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { RecordForm } from "@/components/RecordForm";
 import { requirePermission } from "@/lib/auth/session";
 import { getRegister } from "@/lib/registers/registry";
+import { EXCLUSIVE_RULES } from "@/lib/registers/exclusive";
 import { getRecord } from "@/lib/registers/repository";
 import { buildFieldViews, recordToFormValues } from "@/lib/registers/view";
 import { saveRecordAction } from "../actions";
@@ -21,7 +22,7 @@ export default async function EditRecord({ params }: { params: Promise<{ key: st
     <>
       <h1>Edit {def.label} Record</h1>
       <div className="card">
-        <RecordForm fields={fields} initial={initial} action={saveRecordAction.bind(null, key, id)} cancelHref={`/registers/${key}`} isNew={false} />
+        <RecordForm fields={fields} initial={initial} action={saveRecordAction.bind(null, key, id)} exclusive={EXCLUSIVE_RULES[key]} cancelHref={`/registers/${key}`} isNew={false} />
       </div>
     </>
   );

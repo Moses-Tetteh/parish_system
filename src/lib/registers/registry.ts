@@ -5,14 +5,18 @@ import { schema } from "@/db";
 import { REGISTER_DEFS } from "./definitions.generated";
 import type { FieldDef, RegisterDef } from "./types";
 
-const byKey = new Map<string, RegisterDef>(REGISTER_DEFS.map((d) => [d.key, d]));
+// Registers switched off in the UI (Death Register covers burials). Data stays in the database; remove a key to bring one back.
+const DISABLED_REGISTERS = new Set(["burial_records", "mass_intentions"]);
+const ACTIVE_DEFS = REGISTER_DEFS.filter((d) => !DISABLED_REGISTERS.has(d.key));
+
+const byKey = new Map<string, RegisterDef>(ACTIVE_DEFS.map((d) => [d.key, d]));
 
 export function getRegister(key: string): RegisterDef | undefined {
   return byKey.get(key);
 }
 
 export function allRegisters(): RegisterDef[] {
-  return REGISTER_DEFS;
+  return ACTIVE_DEFS;
 }
 
 // ---- table / column resolution (the ONLY place that touches Drizzle's dynamic typing) ----

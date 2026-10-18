@@ -23,7 +23,6 @@ export const NAV: NavGroup[] = [
       { href: "/registers/confirmation", label: "Confirmation", permission: "registers" },
       { href: "/registers/holy_orders", label: "Holy Orders", permission: "registers" },
       { href: "/registers/death", label: "Death", permission: "registers" },
-      { href: "/registers/burial_records", label: "Cemetery & Burials", permission: "registers" },
     ],
   },
   {
@@ -31,7 +30,6 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/registers/marriage_prep", label: "Marriage Preparation", permission: "registers" },
       { href: "/registers/candidates", label: "Sacrament Prep & RCIA", permission: "registers" },
-      { href: "/registers/mass_intentions", label: "Mass Intentions", permission: "registers" },
       { href: "/registers/sick_calls", label: "Sick & Anointing", permission: "sensitive.sick" },
     ],
   },

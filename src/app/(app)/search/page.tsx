@@ -8,7 +8,7 @@ import { displayValue } from "@/lib/registers/view";
 export const metadata = { title: "Search All" };
 export const dynamic = "force-dynamic";
 
-const SEARCHABLE = ["baptism", "communion", "confirmation", "death", "parishioners", "burial_records", "holy_orders"];
+const SEARCHABLE = ["baptism", "communion", "confirmation", "death", "parishioners", "holy_orders"];
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const user = await requirePermission("registers");
@@ -23,7 +23,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   return (
     <>
       <h1>Search All Registers</h1>
-      <p className="hint">Search once by name to see every matching record across Baptism, First Communion, Confirmation, Death, Holy Orders, Burials and Parishioners — handy when a parishioner needs a lost baptismal card replaced or you need their full sacramental history in one place.</p>
+      <p className="hint">Search once by name to see every matching record across Baptism, First Communion, Confirmation, Death, Holy Orders and Parishioners — handy when a parishioner needs a lost baptismal card replaced or you need their full sacramental history in one place.</p>
 
       <form method="get" className="toolbar" style={{ marginBottom: 20 }}>
         <label htmlFor="q" className="sr-only">Name or record number</label>

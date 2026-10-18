@@ -1043,8 +1043,7 @@ export const REGISTER_DEFS: RegisterDef[] = [
       "day_no",
       "name",
       "day_rank",
-      "colour",
-      "holy_day_of_obligation"
+      "colour"
     ],
     "searchField": "name",
     "filters": [

@@ -15,3 +15,5 @@ export interface FormState {
   values?: Record<string, string>;
   duplicates?: { id: number; name: string }[];
 }
+
+export type { ExclusiveRule } from "./exclusive";

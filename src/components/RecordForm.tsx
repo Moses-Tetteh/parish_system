@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { FieldView, FormState } from "@/lib/registers/form-model";
+import { hiddenFields, type ExclusiveRule } from "@/lib/registers/exclusive";
 
 type Props = {
   fields: FieldView[];
@@ -10,6 +11,7 @@ type Props = {
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
   cancelHref: string;
   isNew: boolean;
+  exclusive?: ExclusiveRule;
 };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -19,10 +21,23 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
  * a two-column `.form-grid` of `.field` blocks, `.form-section` headings, `.readonly-field` /
  * `.restricted-field` placeholders, and a 💾 Save / Cancel pair underneath.
  */
-export function RecordForm({ fields, initial, action, cancelHref }: Props) {
+export function RecordForm({ fields, initial, action, cancelHref, exclusive }: Props) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(action, {});
   const v = (k: string) => state.values?.[k] ?? initial[k] ?? "";
   const err = (k: string) => state.errors?.[k];
+
+  // Either-or rule (Holy Matrimony / Holy Orders): the other side is not rendered, so it is not submitted;
+  // the server enforces the same rule regardless of what the browser sends.
+  const [statusA, setStatusA] = useState(v(exclusive?.a.status ?? ""));
+  const [statusB, setStatusB] = useState(v(exclusive?.b.status ?? ""));
+  const hidden = exclusive ? hiddenFields(exclusive, statusA, statusB) : new Set<string>();
+  const hiddenLabel = exclusive ? (hidden.has(exclusive.a.status) ? exclusive.a.label : hidden.has(exclusive.b.status) ? exclusive.b.label : null) : null;
+  const chosenLabel = exclusive && hiddenLabel ? (hiddenLabel === exclusive.a.label ? exclusive.b.label : exclusive.a.label) : null;
+  const onChoice = (key: string, value: string) => {
+    if (!exclusive) return;
+    if (key === exclusive.a.status) setStatusA(value);
+    if (key === exclusive.b.status) setStatusB(value);
+  };
 
   return (
     <form action={formAction} noValidate>
@@ -44,6 +59,14 @@ export function RecordForm({ fields, initial, action, cancelHref }: Props) {
         {fields.map((f, idx) => {
           if (f.type === "section") return <h3 key={`${f.key}-${idx}`} className="form-section">{f.label}</h3>;
 
+          if (hidden.has(f.key)) {
+            return f.key === exclusive?.a.status || f.key === exclusive?.b.status ? (
+              <div key={f.key} className="field full">
+                <p className="hint">{hiddenLabel} is hidden because {chosenLabel} is recorded. Set {chosenLabel} back to “Not yet received” to show it again.</p>
+              </div>
+            ) : null;
+          }
+
           const id = `f_${f.key}`;
           const e = err(f.key);
           const wide = f.type === "textarea" || f.type === "partial_date";
@@ -58,7 +81,7 @@ export function RecordForm({ fields, initial, action, cancelHref }: Props) {
               ) : f.type === "textarea" ? (
                 <textarea {...common} rows={3} defaultValue={v(f.key)} />
               ) : f.type === "select" ? (
-                <select {...common} defaultValue={v(f.key)} required={f.required}>
+                <select {...common} defaultValue={v(f.key)} required={f.required} onChange={(ev) => onChoice(f.key, ev.target.value)}>
                   <option value="">— Select —</option>
                   {Object.entries(f.options ?? {}).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
                 </select>

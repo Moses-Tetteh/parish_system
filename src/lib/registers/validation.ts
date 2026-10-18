@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { roleCan, type Role } from "@/lib/auth/permissions";
 import { isValidIsoDate, isValidTime, todayIso } from "@/lib/dates";
 import { LOOKUP_TABLES, REF_TARGETS, resolveTable } from "./registry";
+import { EXCLUSIVE_RULES, applyExclusive } from "./exclusive";
 import type { FieldDef, RegisterDef } from "./types";
 
 export type Values = Record<string, string | number | null>;
@@ -126,6 +127,12 @@ export async function parseForm(def: RegisterDef, role: Role, fd: FormData): Pro
         break;
       }
     }
+  }
+  const rule = EXCLUSIVE_RULES[def.key];
+  if (rule && !errors[rule.a.status] && !errors[rule.b.status]) {
+    const r = applyExclusive(rule, values);
+    if (r.error) errors[r.error.field] = r.error.message;
+    else Object.assign(values, r.values);
   }
   return { values, errors };
 }
