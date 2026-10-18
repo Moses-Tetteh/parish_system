@@ -12,90 +12,101 @@ type Props = {
   isNew: boolean;
 };
 
-export function RecordForm({ fields, initial, action, cancelHref, isNew }: Props) {
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * Markup follows the PHP register form (includes/generic_register.php `render_field_grid`):
+ * a two-column `.form-grid` of `.field` blocks, `.form-section` headings, `.readonly-field` /
+ * `.restricted-field` placeholders, and a 💾 Save / Cancel pair underneath.
+ */
+export function RecordForm({ fields, initial, action, cancelHref }: Props) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(action, {});
   const v = (k: string) => state.values?.[k] ?? initial[k] ?? "";
   const err = (k: string) => state.errors?.[k];
 
   return (
-    <form action={formAction} className="space-y-5" noValidate>
-      {!isNew && <input type="hidden" name="_version" value={initial._version ?? ""} />}
+    <form action={formAction} noValidate>
       {state.message && (
-        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div role="alert" className={state.duplicates ? "callout callout-warning" : "flash flash-error"}>
           {state.message}
           {state.duplicates && (
-            <div className="mt-2">
-              <ul className="list-disc pl-5">{state.duplicates.map((d) => <li key={d.id}>{d.name} (record #{d.id})</li>)}</ul>
-              <label className="mt-2 flex items-center gap-2 font-medium">
-                <input type="checkbox" name="confirm_duplicate" value="1" className="h-5 w-5" /> This is a different person — save anyway
+            <div style={{ marginTop: 8 }}>
+              <ul className="plain">{state.duplicates.map((d) => <li key={d.id}>{d.name} (record #{d.id})</li>)}</ul>
+              <label className="check-row" style={{ color: "var(--maroon)" }}>
+                <input type="checkbox" name="confirm_duplicate" value="1" /> This is a different person — save anyway
               </label>
             </div>
           )}
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {fields.map((f) => {
-          if (f.type === "section") return <h3 key={f.key + f.label} className="col-span-full mt-2 border-b border-slate-200 pb-1 text-sm font-semibold uppercase tracking-wide text-brand-700">{f.label}</h3>;
-          const wide = f.type === "textarea";
+      <div className="form-grid">
+        {fields.map((f, idx) => {
+          if (f.type === "section") return <h3 key={`${f.key}-${idx}`} className="form-section">{f.label}</h3>;
+
           const id = `f_${f.key}`;
-          const described = err(f.key) ? `${id}_err` : undefined;
-          const common = { id, name: f.key, "aria-invalid": !!err(f.key) || undefined, "aria-describedby": described } as const;
+          const e = err(f.key);
+          const wide = f.type === "textarea" || f.type === "partial_date";
+          const common = { id, name: f.key, "aria-invalid": !!e || undefined, "aria-describedby": e ? `${id}_err` : undefined, className: e ? "is-invalid" : undefined } as const;
 
           return (
-            <div key={f.key} className={wide ? "col-span-full" : ""}>
-              {f.type === "checkbox" ? (
-                <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-slate-700">
-                  <input type="checkbox" {...common} defaultChecked={!!v(f.key)} className="h-5 w-5" /> {f.label}
-                </label>
-              ) : (
-                <label htmlFor={f.type === "partial_date" ? `${id}__y` : id} className="label">
-                  {f.label}{f.required && <span className="text-red-700" aria-hidden> *</span>}
-                </label>
-              )}
+            <div key={f.key} className={`field${wide ? " full" : ""}`}>
+              <label htmlFor={f.type === "partial_date" ? `${id}__d` : id}>{f.label}{f.required && <span className="req"> *</span>}</label>
 
               {f.restricted ? (
-                <p className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-500">🔒 Restricted</p>
+                <div className="restricted-field">🔒 Restricted — priest/admin only</div>
               ) : f.type === "textarea" ? (
-                <textarea {...common} rows={3} defaultValue={v(f.key)} className="input" />
+                <textarea {...common} rows={3} defaultValue={v(f.key)} />
               ) : f.type === "select" ? (
-                <select {...common} defaultValue={v(f.key)} className="input" required={f.required}>
-                  <option value="">— choose —</option>
+                <select {...common} defaultValue={v(f.key)} required={f.required}>
+                  <option value="">— Select —</option>
                   {Object.entries(f.options ?? {}).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
                 </select>
               ) : f.type === "display" ? (
-                <p className="rounded-lg bg-slate-100 px-3 py-2 text-sm">{f.options?.[v(f.key)] ?? "—"}</p>
+                <div className="readonly-field">{f.options?.[v(f.key)] ?? (v(f.key) || "—")}</div>
               ) : f.type === "lookup" ? (
-                <select {...common} defaultValue={v(f.key)} className="input">
-                  <option value="">— none —</option>
+                <select {...common} defaultValue={v(f.key)}>
+                  <option value="">— None —</option>
                   {(f.lookup ?? []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                 </select>
+              ) : f.type === "checkbox" ? (
+                <input {...common} type="checkbox" value="1" defaultChecked={!!v(f.key)} />
               ) : f.type === "partial_date" ? (
-                <div className="flex gap-2">
-                  <input id={`${id}__y`} name={`${f.key}__y`} inputMode="numeric" placeholder="Year" maxLength={4} defaultValue={v(`${f.key}__y`)} className="input" aria-label={`${f.label} year`} />
-                  <input name={`${f.key}__m`} inputMode="numeric" placeholder="Mo" maxLength={2} defaultValue={v(`${f.key}__m`)} className="input w-20" aria-label={`${f.label} month`} />
-                  <input name={`${f.key}__d`} inputMode="numeric" placeholder="Day" maxLength={2} defaultValue={v(`${f.key}__d`)} className="input w-20" aria-label={`${f.label} day`} />
-                </div>
-              ) : f.type === "checkbox" ? null : (
+                <>
+                  <div className="partial-date">
+                    <select id={`${id}__d`} name={`${f.key}__d`} defaultValue={v(`${f.key}__d`)} aria-label={`${f.label} day`}>
+                      <option value="">Day</option>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <select name={`${f.key}__m`} defaultValue={v(`${f.key}__m`)} aria-label={`${f.label} month`}>
+                      <option value="">Month</option>
+                      {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                    </select>
+                    <input name={`${f.key}__y`} type="number" placeholder="Year" min={1850} max={2100} defaultValue={v(`${f.key}__y`)} aria-label={`${f.label} year`} className={e ? "is-invalid" : undefined} />
+                  </div>
+                  <p className="hint" style={{ marginTop: 4 }}>Leave Day and/or Month blank if not known — Year alone, or Month + Year, is fine.</p>
+                </>
+              ) : (
                 <input
                   {...common}
-                  type={f.type === "date" ? "date" : f.type === "time" ? "time" : "text"}
-                  inputMode={f.type === "number" || f.type === "year" ? "numeric" : f.type === "money" ? "decimal" : undefined}
+                  type={f.type === "date" ? "date" : f.type === "time" ? "time" : f.type === "number" || f.type === "year" || f.type === "money" ? "number" : "text"}
+                  step={f.type === "money" ? "0.01" : f.type === "number" || f.type === "year" ? "1" : undefined}
+                  min={f.type === "year" ? 1850 : f.type === "number" || f.type === "money" ? 0 : undefined}
+                  max={f.type === "year" ? 2100 : undefined}
+                  placeholder={f.type === "year" ? "YYYY" : f.type === "money" ? "0.00" : undefined}
                   defaultValue={v(f.key)}
-                  className="input"
                   required={f.required}
-                  maxLength={f.type === "year" ? 4 : undefined}
                 />
               )}
-              {err(f.key) && <p id={`${id}_err`} className="mt-1 text-sm text-red-700">{err(f.key)}</p>}
+              {e && <p id={`${id}_err`} className="field-error">{e}</p>}
             </div>
           );
         })}
       </div>
 
-      <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
-        <button type="submit" className="btn-primary" disabled={pending}>{pending ? "Saving…" : isNew ? "Add record" : "Save changes"}</button>
-        <Link href={cancelHref} className="btn-secondary">Cancel</Link>
+      <div className="form-actions">
+        <button type="submit" className="btn" disabled={pending}>{pending ? "Saving…" : "💾 Save"}</button>
+        <Link href={cancelHref} className="btn btn-secondary">Cancel</Link>
       </div>
     </form>
   );

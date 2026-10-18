@@ -6,12 +6,20 @@ import { getRegister } from "@/lib/registers/registry";
 import { PAGE_SIZE, listRecords } from "@/lib/registers/repository";
 import { displayValue } from "@/lib/registers/view";
 import { isValidIsoDate } from "@/lib/dates";
+import { ConfirmForm } from "@/components/ConfirmForm";
 import { archiveAction, deleteAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+
+/** Serving/Past, derived from the departure date (blank or still in the future = serving). */
+function serviceStatus(value: unknown): "current" | "past" {
+  const d = String(value ?? "").trim();
+  if (!d || d.startsWith("0000-00-00")) return "current";
+  return d.slice(0, 10) < new Date().toISOString().slice(0, 10) ? "past" : "current";
+}
 
 export default async function RegisterList({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<SP> }) {
   const { key } = await params;
@@ -36,6 +44,8 @@ export default async function RegisterList({ params, searchParams }: { params: P
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const canDelete = !!def.allowDelete && !!def.deleteRoles?.includes(user.role);
   const canExport = def.export !== false && roleCan(user.role, "export");
+  const searchLabel = (def.fields.find((f) => f.key === def.searchField)?.label ?? "name").toLowerCase();
+  const statusField = def.serviceStatusField;
 
   const qs = (over: Record<string, string>) => {
     const p = new URLSearchParams();
@@ -45,109 +55,96 @@ export default async function RegisterList({ params, searchParams }: { params: P
     return s ? `?${s}` : "";
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold">{def.title}{archived && <span className="ml-2 text-base font-normal text-slate-500">(archived)</span>}</h1>
-        <div className="ml-auto flex gap-2">
-          {canExport && <a className="btn-secondary" href={`/registers/${key}/export${qs({})}`}>Export CSV</a>}
-          <Link className="btn-primary" href={`/registers/${key}/new`}>+ Add {def.label}</Link>
-        </div>
-      </div>
-      {def.intro && <p className="rounded-lg bg-brand-50 px-4 py-2 text-sm text-brand-900">{def.intro}</p>}
-      {one(sp.saved) && <p role="status" className="rounded-lg bg-green-50 px-4 py-2 text-sm text-green-900">Saved.</p>}
-      {one(sp.deleted) && <p role="status" className="rounded-lg bg-green-50 px-4 py-2 text-sm text-green-900">Record deleted.</p>}
+  // Numbered pager exactly as in PHP: first, last, current ±2, and "…" at the edges of that window.
+  const pager: (number | "gap")[] = [];
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || Math.abs(p - page) <= 2) pager.push(p);
+    else if (Math.abs(p - page) === 3) pager.push("gap");
+  }
 
-      <form method="get" className="card grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="sm:col-span-2">
-          <label htmlFor="q" className="label">Search</label>
-          <input id="q" name="q" defaultValue={q} className="input" placeholder="Name or record number" maxLength={100} />
-        </div>
-        {(def.filters ?? []).map((fk) => {
-          const f = def.fields.find((x) => x.key === fk);
-          if (!f?.options) return null;
-          return (
-            <div key={fk}>
-              <label htmlFor={`f_${fk}`} className="label">{f.label}</label>
-              <select id={`f_${fk}`} name={fk} defaultValue={filters[fk]} className="input">
-                <option value="">All</option>
+  return (
+    <>
+      <h1>{def.title}</h1>
+      {def.intro && <p className="hint">{def.intro}</p>}
+      {one(sp.saved) && <div role="status" className="flash flash-success">Record saved.</div>}
+      {one(sp.deleted) && <div role="status" className="flash flash-success">Record deleted.</div>}
+
+      <div className="toolbar">
+        <form method="get" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <input type="text" name="q" placeholder={`Search ${searchLabel}…`} defaultValue={q} maxLength={100} style={{ width: 240 }} aria-label="Search" />
+          {(def.filters ?? []).map((fk) => {
+            const f = def.fields.find((x) => x.key === fk);
+            if (!f?.options) return null;
+            return (
+              <select key={fk} name={fk} defaultValue={filters[fk]} aria-label={f.label}>
+                <option value="">All {f.label}</option>
                 {Object.entries(f.options).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select>
-            </div>
-          );
-        })}
-        {def.serviceStatusField && (
-          <div>
-            <label htmlFor="serving" className="label">Status</label>
-            <select id="serving" name="serving" defaultValue={serving} className="input">
-              <option value="">All</option><option value="serving">Serving</option><option value="past">Past</option>
+            );
+          })}
+          {def.dateFilter && (<>
+            <label className="inline-label">From <input type="date" name="from" defaultValue={from} /></label>
+            <label className="inline-label">To <input type="date" name="to" defaultValue={to} /></label>
+          </>)}
+          {statusField && (
+            <select name="serving" defaultValue={serving} aria-label="Service status">
+              <option value="">All (Serving &amp; Past)</option>
+              <option value="serving">Currently Serving</option>
+              <option value="past">Past (Left the Parish)</option>
             </select>
-          </div>
-        )}
-        {def.dateFilter && (<>
-          <div><label htmlFor="from" className="label">From</label><input id="from" type="date" name="from" defaultValue={from} className="input" /></div>
-          <div><label htmlFor="to" className="label">To</label><input id="to" type="date" name="to" defaultValue={to} className="input" /></div>
-        </>)}
-        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
-          <label className="mr-auto flex items-center gap-2 text-sm"><input type="checkbox" name="archived" value="1" defaultChecked={archived} className="h-5 w-5" /> Show archived</label>
-          <button className="btn-primary">Apply</button>
-          <Link href={`/registers/${key}`} className="btn-secondary">Reset</Link>
-        </div>
-      </form>
+          )}
+          {archived && <input type="hidden" name="archived" value="1" />}
+          <button className="btn btn-secondary" type="submit">Search / Filter</button>
+        </form>
+        <Link href={`/registers/${key}/new`} className="btn">➕ Add Record</Link>
+        {canExport && <a href={`/registers/${key}/export${qs({})}`} className="btn btn-secondary">⬇ Export CSV</a>}
+        <Link href={`/registers/${key}${qs({ archived: archived ? "" : "1", page: "" })}`} className="btn btn-secondary">{archived ? "Show Active" : "Show Archived"}</Link>
+      </div>
 
-      <p className="text-sm text-slate-600" aria-live="polite">{total.toLocaleString()} record{total === 1 ? "" : "s"}</p>
+      <p className="result-count" aria-live="polite">{total.toLocaleString()} record{total === 1 ? "" : "s"}{archived ? " (archived)" : ""}</p>
 
-      {/* Desktop: table. Phone: stacked cards — same data, no horizontal scrolling. */}
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white md:block">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
-            <tr>{cols.map((c) => <th key={c.key} scope="col" className="px-4 py-3">{c.label.replace(/\s*\(.*?\)/, "")}</th>)}<th scope="col" className="px-4 py-3 text-right">Actions</th></tr>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              {cols.map((c) => <th key={c.key} scope="col">{c.label}</th>)}
+              {statusField && <th scope="col">Status</th>}
+              <th scope="col">Actions</th>
+            </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-slate-50">
-                {cols.map((c, i) => (
-                  <td key={c.key} className="px-4 py-3">
-                    {i === 0 ? <Link href={`/registers/${key}/${r.id}`} className="font-medium text-brand-700 underline-offset-2 hover:underline">{displayValue(def, c, r) || "—"}</Link> : displayValue(def, c, r)}
+          <tbody>
+            {rows.length === 0 && <tr><td colSpan={cols.length + 1 + (statusField ? 1 : 0)}>No records found.</td></tr>}
+            {rows.map((r) => {
+              const st = statusField ? serviceStatus(r[statusField]) : null;
+              return (
+                <tr key={r.id}>
+                  {cols.map((c) => <td key={c.key}>{displayValue(def, c, r)}</td>)}
+                  {st && <td><span className={`badge badge-${st}`}>{st === "current" ? "Serving" : "Past"}</span></td>}
+                  <td className="row-actions">
+                    <Link href={`/registers/${key}/${r.id}`} className="btn btn-small">Edit</Link>
+                    <ConfirmForm action={archiveAction.bind(null, key, r.id, !archived)} message={`${archived ? "Restore" : "Archive"} this record?`}>
+                      <button type="submit" className="btn btn-small btn-danger">{archived ? "Restore" : "Archive"}</button>
+                    </ConfirmForm>
+                    {canDelete && (
+                      <ConfirmForm action={deleteAction.bind(null, key, r.id)} message="PERMANENTLY delete this record? This cannot be undone.">
+                        <button type="submit" className="btn btn-small btn-danger">Delete</button>
+                      </ConfirmForm>
+                    )}
                   </td>
-                ))}
-                <td className="px-4 py-2 text-right"><RowActions k={key} id={r.id} archived={archived} canDelete={canDelete} /></td>
-              </tr>
-            ))}
-            {!rows.length && <tr><td colSpan={cols.length + 1} className="px-4 py-10 text-center text-slate-500">No records found.</td></tr>}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-      <ul className="space-y-3 md:hidden">
-        {rows.map((r) => (
-          <li key={r.id} className="card">
-            <Link href={`/registers/${key}/${r.id}`} className="text-base font-semibold text-brand-700">{displayValue(def, cols[0]!, r) || "—"}</Link>
-            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-              {cols.slice(1).map((c) => (<div key={c.key}><dt className="text-xs text-slate-500">{c.label.replace(/\s*\(.*?\)/, "")}</dt><dd>{displayValue(def, c, r) || "—"}</dd></div>))}
-            </dl>
-            <div className="mt-3"><RowActions k={key} id={r.id} archived={archived} canDelete={canDelete} /></div>
-          </li>
-        ))}
-        {!rows.length && <li className="card text-center text-slate-500">No records found.</li>}
-      </ul>
 
       {pages > 1 && (
-        <nav aria-label="Pagination" className="flex items-center justify-between">
-          {page > 1 ? <Link className="btn-secondary" href={`/registers/${key}${qs({ page: String(page - 1) })}`}>← Previous</Link> : <span />}
-          <span className="text-sm text-slate-600">Page {page} of {pages}</span>
-          {page < pages ? <Link className="btn-secondary" href={`/registers/${key}${qs({ page: String(page + 1) })}`}>Next →</Link> : <span />}
+        <nav className="pager" aria-label="Pages">
+          {pager.map((p, i) => p === "gap"
+            ? <span key={`g${i}`}>…</span>
+            : <Link key={p} href={`/registers/${key}${qs({ page: String(p) })}`} className={p === page ? "current" : ""} aria-current={p === page ? "page" : undefined}>{p}</Link>)}
         </nav>
       )}
-    </div>
-  );
-}
-
-function RowActions({ k, id, archived, canDelete }: { k: string; id: number; archived: boolean; canDelete: boolean }) {
-  return (
-    <div className="flex flex-wrap justify-end gap-2">
-      <Link href={`/registers/${k}/${id}`} className="btn-secondary !min-h-9 !px-3">Edit</Link>
-      <form action={archiveAction.bind(null, k, id, !archived)}><button className="btn-secondary !min-h-9 !px-3">{archived ? "Restore" : "Archive"}</button></form>
-      {canDelete && <form action={deleteAction.bind(null, k, id)}><button className="btn-danger !min-h-9 !px-3">Delete</button></form>}
-    </div>
+    </>
   );
 }

@@ -15,9 +15,11 @@ export default async function NewRecord({ params }: { params: Promise<{ key: str
   const user = await requirePermission(def.permission);
   const [fields, initial] = await Promise.all([buildFieldViews(def, user.role), recordToFormValues(def, null, initialValues(def))]);
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Add {def.label}</h1>
-      <div className="card"><RecordForm fields={fields} initial={initial} action={saveRecordAction.bind(null, key, null)} cancelHref={`/registers/${key}`} isNew /></div>
-    </div>
+    <>
+      <h1>Add {def.label} Record</h1>
+      <div className="card">
+        <RecordForm fields={fields} initial={initial} action={saveRecordAction.bind(null, key, null)} cancelHref={`/registers/${key}`} isNew />
+      </div>
+    </>
   );
 }

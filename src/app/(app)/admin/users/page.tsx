@@ -1,11 +1,11 @@
 import { asc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requirePermission } from "@/lib/auth/session";
-import { ROLE_LABELS, ROLES } from "@/lib/auth/permissions";
+import { ConfirmForm } from "@/components/ConfirmForm";
 import { changeRoleAction, toggleUserAction } from "./actions";
-import { CreateUserForm, ResetPasswordForm } from "./Forms";
+import { CreateUserForm, ResetPasswordForm, RoleForm } from "./Forms";
 
-export const metadata = { title: "Users" };
+export const metadata = { title: "Manage Users" };
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
@@ -16,31 +16,39 @@ export default async function UsersPage() {
   }).from(schema.users).orderBy(asc(schema.users.username)); // password hashes are never selected
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Users</h1>
+    <>
+      <h1>Manage Users</h1>
+      <p className="hint" style={{ marginTop: 0, marginBottom: 18 }}>Add staff accounts, change roles, reset passwords and deactivate users who have left.</p>
+
       <CreateUserForm />
-      <ul className="space-y-3">
-        {users.map((u) => (
-          <li key={u.id} className="card flex flex-wrap items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold">{u.username}{u.id === me.id && <span className="ml-2 badge bg-brand-100 text-brand-900">you</span>}
-                {u.isActive !== 1 && <span className="ml-2 badge bg-slate-200 text-slate-700">disabled</span>}</div>
-              <div className="text-sm text-slate-600">{u.fullName || "—"}</div>
-            </div>
-            <form action={changeRoleAction.bind(null, u.id)} className="flex items-center gap-2">
-              <label className="sr-only" htmlFor={`r${u.id}`}>Role</label>
-              <select id={`r${u.id}`} name="role" defaultValue={u.role} className="input !w-48">{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}</select>
-              <button className="btn-secondary !min-h-9">Set role</button>
-            </form>
-            <ResetPasswordForm id={u.id} />
-            {u.id !== me.id && (
-              <form action={toggleUserAction.bind(null, u.id)}>
-                <button className={u.isActive === 1 ? "btn-danger !min-h-9" : "btn-secondary !min-h-9"}>{u.isActive === 1 ? "Disable" : "Enable"}</button>
-              </form>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
+
+      <div className="card">
+        <h2>Existing Users</h2>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Username</th><th scope="col">Full Name</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.username}{u.id === me.id && <> <span className="hint">(you)</span></>}</td>
+                  <td>{u.fullName || "—"}</td>
+                  <td><RoleForm id={u.id} role={u.role} action={changeRoleAction.bind(null, u.id)} /></td>
+                  <td><span className={`badge${u.isActive === 1 ? "" : " badge-archived"}`}>{u.isActive === 1 ? "Active" : "Inactive"}</span></td>
+                  <td className="row-actions">
+                    <ResetPasswordForm id={u.id} />
+                    {u.id !== me.id && (
+                      <ConfirmForm action={toggleUserAction.bind(null, u.id)} message={u.isActive === 1 ? "Deactivate this user? They will no longer be able to log in." : "Activate this user?"}>
+                        <button type="submit" className={`btn btn-small${u.isActive === 1 ? " btn-danger" : ""}`}>{u.isActive === 1 ? "Deactivate" : "Activate"}</button>
+                      </ConfirmForm>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="hint">Deactivated users can no longer log in, but their name stays attached to any records they&rsquo;ve created or edited. You can&rsquo;t deactivate your own account here — ask another admin if you need to be deactivated.</p>
+      </div>
+    </>
   );
 }

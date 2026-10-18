@@ -18,9 +18,11 @@ export default async function EditRecord({ params }: { params: Promise<{ key: st
   if (!rec) notFound();
   const [fields, initial] = await Promise.all([buildFieldViews(def, user.role), recordToFormValues(def, rec, {})]);
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Edit {def.label} <span className="text-base font-normal text-slate-500">#{id}</span></h1>
-      <div className="card"><RecordForm fields={fields} initial={initial} action={saveRecordAction.bind(null, key, id)} cancelHref={`/registers/${key}`} isNew={false} /></div>
-    </div>
+    <>
+      <h1>Edit {def.label} Record</h1>
+      <div className="card">
+        <RecordForm fields={fields} initial={initial} action={saveRecordAction.bind(null, key, id)} cancelHref={`/registers/${key}`} isNew={false} />
+      </div>
+    </>
   );
 }

@@ -8,7 +8,7 @@ import { SESSION_COOKIE, idleSeconds, signSession, verifySession } from "@/lib/a
  * NOT the security boundary: every page/action/route re-validates the user against the
  * database (lib/auth/session.ts). Middleware is only an early filter.
  */
-const PUBLIC_PATHS = ["/login", "/forbidden", "/api/health", "/api/cron", "/robots.txt"];
+const PUBLIC_PATHS = ["/login", "/forbidden", "/api/health"];
 
 function buildCsp(nonce: string, dev: boolean): string {
   return [
@@ -57,9 +57,8 @@ export async function middleware(req: NextRequest) {
   res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
   res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   res.headers.set("Cross-Origin-Resource-Policy", "same-origin");
-  res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   if (req.headers.get("x-forwarded-proto") === "https") {
-    res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
+    res.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
   // Register data is personal data: never let browsers/proxies keep it.
   if (!pathname.startsWith("/_next/static")) res.headers.set("Cache-Control", "no-store, private");
@@ -79,5 +78,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.png).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.png|assets/).*)"],
 };

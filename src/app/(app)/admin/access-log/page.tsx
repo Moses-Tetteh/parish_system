@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import { requirePermission } from "@/lib/auth/session";
 import { PAGE_SIZE } from "@/lib/registers/repository";
 
-export const metadata = { title: "Access log" };
+export const metadata = { title: "Access Log" };
 export const dynamic = "force-dynamic";
 
 export default async function AccessLogPage({ searchParams }: { searchParams: Promise<{ action?: string; page?: string }> }) {
@@ -15,29 +15,45 @@ export default async function AccessLogPage({ searchParams }: { searchParams: Pr
   const rows = await db().select().from(schema.accessLog).where(and(action ? eq(schema.accessLog.action, action) : undefined))
     .orderBy(desc(schema.accessLog.id)).limit(PAGE_SIZE + 1).offset((page - 1) * PAGE_SIZE);
   const qs = (p: number) => `?${new URLSearchParams({ ...(action && { action }), page: String(p) })}`;
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Access log</h1>
-      <p className="text-sm text-slate-600">Sign-ins, failed sign-ins, views of sensitive registers and exports. Review monthly; investigate any export you do not recognise.</p>
-      <form className="card flex gap-3">
-        <div><label className="label" htmlFor="a">Action</label>
-          <select id="a" name="action" defaultValue={action} className="input"><option value="">All</option>{["login", "login_failed", "login_blocked", "logout", "view", "export"].map((a) => <option key={a}>{a}</option>)}</select></div>
-        <div className="self-end"><button className="btn-primary">Filter</button></div>
-      </form>
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-100 text-xs uppercase text-slate-600"><tr><th className="px-3 py-2">When</th><th className="px-3 py-2">User</th><th className="px-3 py-2">Role</th><th className="px-3 py-2">Action</th><th className="px-3 py-2">Resource</th><th className="px-3 py-2">IP</th></tr></thead>
-          <tbody className="divide-y divide-slate-100">
+    <>
+      <h1>Access Log</h1>
+      <p className="hint" style={{ marginTop: 0, marginBottom: 18 }}>Sign-ins, failed sign-ins, views of sensitive registers and exports. Review monthly; investigate any export you do not recognise.</p>
+
+      <div className="card">
+        <form method="get" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div className="field" style={{ marginBottom: 0, minWidth: 180 }}>
+            <label htmlFor="a">Action</label>
+            <select id="a" name="action" defaultValue={action}>
+              <option value="">All</option>
+              {["login", "login_failed", "login_blocked", "logout", "view", "export"].map((a) => <option key={a}>{a}</option>)}
+            </select>
+          </div>
+          <button className="btn" type="submit">Filter</button>
+        </form>
+      </div>
+
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th scope="col">When</th><th scope="col">User</th><th scope="col">Role</th><th scope="col">Action</th><th scope="col">Resource</th><th scope="col">IP</th></tr></thead>
+          <tbody>
+            {rows.length === 0 && <tr><td colSpan={6}>No entries found.</td></tr>}
             {rows.slice(0, PAGE_SIZE).map((r) => (
-              <tr key={r.id}><td className="whitespace-nowrap px-3 py-2">{r.occurredAt}</td><td className="px-3 py-2">{r.username}</td><td className="px-3 py-2">{r.role}</td><td className="px-3 py-2">{r.action}</td><td className="px-3 py-2">{r.resource}{r.recordId ? ` #${r.recordId}` : ""} {r.detail}</td><td className="px-3 py-2">{r.ipAddress}</td></tr>
+              <tr key={r.id}>
+                <td className="nowrap">{r.occurredAt}</td><td>{r.username}</td><td>{r.role}</td><td>{r.action}</td>
+                <td>{r.resource}{r.recordId ? ` #${r.recordId}` : ""} {r.detail}</td><td>{r.ipAddress}</td>
+              </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <nav className="flex justify-between">
-        {page > 1 ? <Link className="btn-secondary" href={qs(page - 1)}>← Newer</Link> : <span />}
-        {rows.length > PAGE_SIZE ? <Link className="btn-secondary" href={qs(page + 1)}>Older →</Link> : <span />}
+
+      <nav className="pager" aria-label="Pages">
+        {page > 1 && <Link href={qs(page - 1)}>← Newer</Link>}
+        <Link href={qs(page)} className="current" aria-current="page">{page}</Link>
+        {rows.length > PAGE_SIZE && <Link href={qs(page + 1)}>Older →</Link>}
       </nav>
-    </div>
+    </>
   );
 }

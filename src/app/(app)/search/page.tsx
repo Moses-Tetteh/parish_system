@@ -5,7 +5,7 @@ import { allRegisters } from "@/lib/registers/registry";
 import { listRecords } from "@/lib/registers/repository";
 import { displayValue } from "@/lib/registers/view";
 
-export const metadata = { title: "Search" };
+export const metadata = { title: "Search All" };
 export const dynamic = "force-dynamic";
 
 const SEARCHABLE = ["baptism", "communion", "confirmation", "death", "parishioners", "burial_records", "holy_orders"];
@@ -18,34 +18,46 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const results = q.length >= 2
     ? await Promise.all(defs.map(async (d) => ({ d, res: await listRecords(d, user, { q, page: 1 }) })))
     : [];
+  const hits = results.filter((r) => r.res.total);
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Search all registers</h1>
-      <form method="get" className="flex gap-2">
+    <>
+      <h1>Search All Registers</h1>
+      <p className="hint">Search once by name to see every matching record across Baptism, First Communion, Confirmation, Death, Holy Orders, Burials and Parishioners — handy when a parishioner needs a lost baptismal card replaced or you need their full sacramental history in one place.</p>
+
+      <form method="get" className="toolbar" style={{ marginBottom: 20 }}>
         <label htmlFor="q" className="sr-only">Name or record number</label>
-        <input id="q" name="q" defaultValue={q} className="input" placeholder="Name or record number (min. 2 letters)" maxLength={100} autoFocus />
-        <button className="btn-primary">Search</button>
+        <input id="q" type="text" name="q" defaultValue={q} placeholder="Enter a name or record number (min. 2 letters)…" maxLength={100} style={{ maxWidth: 360 }} autoFocus />
+        <button className="btn" type="submit">Search</button>
       </form>
-      {q.length >= 2 && !results.some((r) => r.res.total) && <p className="card text-slate-600">No matches for “{q}”.</p>}
-      {results.filter((r) => r.res.total).map(({ d, res }) => (
-        <section key={d.key} className="card">
-          <h2 className="font-semibold">{d.title} <span className="text-sm font-normal text-slate-500">({res.total})</span></h2>
-          <ul className="mt-2 divide-y divide-slate-100">
-            {res.rows.slice(0, 8).map((r) => {
-              const first = d.fields.find((f) => f.key === d.listColumns[0])!;
-              const second = d.fields.find((f) => f.key === d.listColumns[1]);
-              return (
-                <li key={r.id} className="py-2">
-                  <Link className="font-medium text-brand-700 hover:underline" href={`/registers/${d.key}/${r.id}`}>{displayValue(d, first, r) || `#${r.id}`}</Link>
-                  {second && <span className="ml-2 text-sm text-slate-500">{displayValue(d, second, r)}</span>}
-                </li>
-              );
-            })}
-          </ul>
-          {res.total > 8 && <Link className="mt-2 inline-block text-sm text-brand-700 hover:underline" href={`/registers/${d.key}?q=${encodeURIComponent(q)}`}>See all {res.total} →</Link>}
-        </section>
-      ))}
-    </div>
+
+      {q.length < 2 && <p className="hint">Enter a name above to search all registers at once.</p>}
+      {q.length >= 2 && hits.length === 0 && <div className="flash flash-info">No records found for “{q}” in any register.</div>}
+
+      {hits.map(({ d, res }) => {
+        const first = d.fields.find((f) => f.key === d.listColumns[0])!;
+        const second = d.fields.find((f) => f.key === d.listColumns[1]);
+        return (
+          <div className="card" key={d.key}>
+            <h2>{d.title} <span className="badge">{res.total}</span></h2>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th scope="col">{first.label}</th>{second && <th scope="col">{second.label}</th>}<th scope="col">Actions</th></tr></thead>
+                <tbody>
+                  {res.rows.slice(0, 8).map((r) => (
+                    <tr key={r.id}>
+                      <td>{displayValue(d, first, r) || `#${r.id}`}</td>
+                      {second && <td>{displayValue(d, second, r)}</td>}
+                      <td className="row-actions"><Link href={`/registers/${d.key}/${r.id}`} className="btn btn-small">View / Edit</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {res.total > 8 && <p className="hint">Showing 8 of {res.total}. <Link href={`/registers/${d.key}?q=${encodeURIComponent(q)}`}>See all {res.total} →</Link></p>}
+          </div>
+        );
+      })}
+    </>
   );
 }

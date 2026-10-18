@@ -6,20 +6,18 @@ import { loginAction, type LoginState } from "./actions";
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(loginAction, {});
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form action={action} noValidate>
       <input type="hidden" name="next" value={next} />
-      {state.error && (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p>
-      )}
-      <div>
-        <label htmlFor="username" className="label">Username</label>
-        <input id="username" name="username" className="input" autoComplete="username" autoCapitalize="none" required autoFocus />
+      {state.error && <div role="alert" className="flash flash-error">{state.error}</div>}
+      <div className="field">
+        <label htmlFor="username">Username</label>
+        <input id="username" name="username" type="text" autoComplete="username" autoCapitalize="none" required autoFocus />
       </div>
-      <div>
-        <label htmlFor="password" className="label">Password</label>
-        <input id="password" name="password" type="password" className="input" autoComplete="current-password" required />
+      <div className="field">
+        <label htmlFor="password">Password</label>
+        <input id="password" name="password" type="password" autoComplete="current-password" required />
       </div>
-      <button type="submit" className="btn-primary w-full" disabled={pending}>{pending ? "Signing in…" : "Sign in"}</button>
+      <button type="submit" className="btn" style={{ width: "100%", marginTop: 6 }} disabled={pending}>{pending ? "Logging in…" : "Log In"}</button>
     </form>
   );
 }

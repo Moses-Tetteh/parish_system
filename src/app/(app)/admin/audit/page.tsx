@@ -1,10 +1,10 @@
 import { desc, eq, and, like } from "drizzle-orm";
+import Link from "next/link";
 import { db, schema } from "@/db";
 import { requirePermission } from "@/lib/auth/session";
 import { PAGE_SIZE } from "@/lib/registers/repository";
-import Link from "next/link";
 
-export const metadata = { title: "Audit trail" };
+export const metadata = { title: "Audit Trail" };
 export const dynamic = "force-dynamic";
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ table?: string; user?: string; page?: string }> }) {
@@ -17,28 +17,40 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const qs = (p: number) => `?${new URLSearchParams({ ...(table && { table }), ...(user && { user }), page: String(p) })}`;
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Audit trail</h1>
-      <form className="card flex flex-wrap gap-3">
-        <div><label className="label" htmlFor="t">Table</label><input id="t" name="table" defaultValue={table} className="input" /></div>
-        <div><label className="label" htmlFor="u">User</label><input id="u" name="user" defaultValue={user} className="input" /></div>
-        <div className="self-end"><button className="btn-primary">Filter</button></div>
-      </form>
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-100 text-xs uppercase text-slate-600"><tr><th className="px-3 py-2">When</th><th className="px-3 py-2">User</th><th className="px-3 py-2">Action</th><th className="px-3 py-2">Table #id</th><th className="px-3 py-2">Details</th></tr></thead>
-          <tbody className="divide-y divide-slate-100">
+    <>
+      <h1>Audit Trail</h1>
+      <p className="hint" style={{ marginTop: 0, marginBottom: 18 }}>Who created, changed, archived or deleted what, and when.</p>
+
+      <div className="card">
+        <form method="get" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div className="field" style={{ marginBottom: 0, minWidth: 180 }}><label htmlFor="t">Table</label><input id="t" type="text" name="table" defaultValue={table} /></div>
+          <div className="field" style={{ marginBottom: 0, minWidth: 180 }}><label htmlFor="u">User</label><input id="u" type="text" name="user" defaultValue={user} /></div>
+          <button className="btn" type="submit">Filter</button>
+          {(table || user) && <Link href="/admin/audit" className="btn btn-secondary">Reset</Link>}
+        </form>
+      </div>
+
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th scope="col">When</th><th scope="col">User</th><th scope="col">Action</th><th scope="col">Table #id</th><th scope="col">Details</th></tr></thead>
+          <tbody>
+            {rows.length === 0 && <tr><td colSpan={5}>No entries found.</td></tr>}
             {rows.slice(0, PAGE_SIZE).map((r) => (
-              <tr key={r.id}><td className="whitespace-nowrap px-3 py-2">{r.timestamp}</td><td className="px-3 py-2">{r.username}</td><td className="px-3 py-2">{r.action}</td>
-                <td className="whitespace-nowrap px-3 py-2">{r.tableName} #{r.recordId}</td><td className="max-w-md truncate px-3 py-2 font-mono text-xs" title={r.details ?? ""}>{r.details}</td></tr>
+              <tr key={r.id}>
+                <td className="nowrap">{r.timestamp}</td><td>{r.username}</td><td>{r.action}</td>
+                <td className="nowrap">{r.tableName} #{r.recordId}</td>
+                <td>{r.details ? <div className="audit-detail mono">{r.details}</div> : null}</td>
+              </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <nav className="flex justify-between">
-        {page > 1 ? <Link className="btn-secondary" href={qs(page - 1)}>← Newer</Link> : <span />}
-        {rows.length > PAGE_SIZE ? <Link className="btn-secondary" href={qs(page + 1)}>Older →</Link> : <span />}
+
+      <nav className="pager" aria-label="Pages">
+        {page > 1 && <Link href={qs(page - 1)}>← Newer</Link>}
+        <Link href={qs(page)} className="current" aria-current="page">{page}</Link>
+        {rows.length > PAGE_SIZE && <Link href={qs(page + 1)}>Older →</Link>}
       </nav>
-    </div>
+    </>
   );
 }

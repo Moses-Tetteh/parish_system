@@ -1,13 +1,20 @@
 import Link from "next/link";
+import { AppFooter } from "@/components/AppFooter";
 
 export const metadata = { title: "No permission" };
+export const dynamic = "force-dynamic";
 
 export default function Forbidden() {
   return (
-    <main className="mx-auto mt-24 max-w-md px-4 text-center">
-      <h1 className="text-2xl font-bold">You don’t have permission to open that page</h1>
-      <p className="mt-3 text-slate-600">Your role does not include this area. If you think this is a mistake, ask the parish administrator.</p>
-      <Link href="/dashboard" className="btn-primary mt-6">Back to the dashboard</Link>
-    </main>
+    <>
+      <main className="container" style={{ maxWidth: 560, textAlign: "center", paddingTop: 80 }}>
+        <div className="card">
+          <h1>You don&rsquo;t have permission to open that page</h1>
+          <p className="hint">Your role does not include this area. If you think this is a mistake, ask the parish administrator.</p>
+          <p style={{ marginTop: 18 }}><Link href="/dashboard" className="btn">Back to the dashboard</Link></p>
+        </div>
+      </main>
+      <AppFooter />
+    </>
   );
 }
