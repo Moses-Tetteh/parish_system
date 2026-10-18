@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1c2230;
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dbe7ff;
+  --color-brand-600: #27498f;
+  --color-brand-700: #1d3b78;
+  --color-brand-900: #14284f;
+  --color-gold-500: #b8892b;
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html { color-scheme: light; }
+body { @apply bg-slate-50 text-ink antialiased; font-family: var(--font-sans); }
+:focus-visible { outline: 3px solid var(--color-brand-600); outline-offset: 2px; border-radius: 4px; }
+
+.input { @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base shadow-sm placeholder:text-slate-400 focus:border-brand-600 disabled:bg-slate-100; min-height: 44px; }
+.btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline-offset-2 disabled:opacity-60; min-height: 44px; }
+.btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline-offset-2 disabled:opacity-60 bg-brand-700 text-white hover:bg-brand-900; min-height: 44px; }
+.btn-secondary { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline-offset-2 disabled:opacity-60 border border-slate-300 bg-white text-slate-800 hover:bg-slate-100; min-height: 44px; }
+.btn-danger { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline-offset-2 disabled:opacity-60 bg-red-700 text-white hover:bg-red-800; min-height: 44px; }
+.card { @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6; }
+.label { @apply mb-1 block text-sm font-medium text-slate-700; }
+.badge { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium; }
+
+@media print {
+  header, nav, .no-print { display: none !important; }
+  body { background: white; }
+}
