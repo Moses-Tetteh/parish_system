@@ -10,3 +10,5 @@ storage/backups/*
 !storage/backups/.gitkeep
 .drizzle-pull
 .env.local
+import-orphans.log
+import-orphans.log
