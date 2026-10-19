@@ -5,6 +5,7 @@ import { roleCan, type Role } from "@/lib/auth/permissions";
 import { isValidIsoDate, isValidTime, todayIso } from "@/lib/dates";
 import { LOOKUP_TABLES, REF_TARGETS, resolveTable } from "./registry";
 import { EXCLUSIVE_RULES, applyExclusive } from "./exclusive";
+import { crossRegisterErrors } from "./cross-checks";
 import type { FieldDef, RegisterDef } from "./types";
 
 export type Values = Record<string, string | number | null>;
@@ -134,6 +135,7 @@ export async function parseForm(def: RegisterDef, role: Role, fd: FormData): Pro
     if (r.error) errors[r.error.field] = r.error.message;
     else Object.assign(values, r.values);
   }
+  if (Object.keys(errors).length === 0) Object.assign(errors, await crossRegisterErrors(def.key, values));
   return { values, errors };
 }
 

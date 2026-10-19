@@ -6,6 +6,7 @@ import { roleCan } from "@/lib/auth/permissions";
 import { isValidVersion } from "./concurrency";
 import type { SessionUser } from "@/lib/auth/session";
 import { LOOKUP_TABLES, resolveTable } from "./registry";
+import { nameKey } from "@/lib/parishioners/name-matcher";
 import type { RecordRow, RegisterDef } from "./types";
 import type { Values } from "./validation";
 
@@ -112,6 +113,11 @@ function toProps(def: RegisterDef, values: Values): Record<string, unknown> {
   for (const [k, v] of Object.entries(values)) {
     const c = t.columns.get(k);
     if (c) out[c.prop] = v;
+  }
+  // The Parishioners sync matches people on the normalised name, so it is derived on every write (never typed).
+  if (def.key === "parishioners" && typeof values.full_name === "string") {
+    const nk = t.columns.get("name_key");
+    if (nk) out[nk.prop] = nameKey(values.full_name) || null;
   }
   return out;
 }

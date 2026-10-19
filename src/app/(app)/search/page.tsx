@@ -1,3 +1,5 @@
+import { formatDate } from "@/lib/dates";
+import { listMarriages } from "@/lib/matrimony/repository";
 import Link from "next/link";
 import { requirePermission } from "@/lib/auth/session";
 import { roleCan } from "@/lib/auth/permissions";
@@ -19,11 +21,12 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     ? await Promise.all(defs.map(async (d) => ({ d, res: await listRecords(d, user, { q, page: 1 }) })))
     : [];
   const hits = results.filter((r) => r.res.total);
+  const marriages = q.length >= 2 && roleCan(user.role, "registers") ? await listMarriages(user, { q, page: 1 }) : null;
 
   return (
     <>
       <h1>Search All Registers</h1>
-      <p className="hint">Search once by name to see every matching record across Baptism, First Communion, Confirmation, Death, Holy Orders and Parishioners — handy when a parishioner needs a lost baptismal card replaced or you need their full sacramental history in one place.</p>
+      <p className="hint">Search once by name to see every matching record across Baptism, First Communion, Confirmation, Holy Matrimony, Death, Holy Orders and Parishioners — handy when a parishioner needs a lost baptismal card replaced or you need their full sacramental history in one place.</p>
 
       <form method="get" className="toolbar" style={{ marginBottom: 20 }}>
         <label htmlFor="q" className="sr-only">Name or record number</label>
@@ -32,7 +35,29 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       </form>
 
       {q.length < 2 && <p className="hint">Enter a name above to search all registers at once.</p>}
-      {q.length >= 2 && hits.length === 0 && <div className="flash flash-info">No records found for “{q}” in any register.</div>}
+      {q.length >= 2 && hits.length === 0 && !marriages?.total && <div className="flash flash-info">No records found for “{q}” in any register.</div>}
+
+      {marriages && marriages.total > 0 && (
+        <div className="card">
+          <h2>Holy Matrimony Register <span className="badge">{marriages.total}</span></h2>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th scope="col">Groom</th><th scope="col">Bride</th><th scope="col">Date of Marriage</th><th scope="col">Actions</th></tr></thead>
+              <tbody>
+                {marriages.rows.slice(0, 8).map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.groom || `#${r.id}`}</td>
+                    <td>{r.bride}</td>
+                    <td>{formatDate(r.date)}</td>
+                    <td className="row-actions"><Link href={`/matrimony/${r.id}`} className="btn btn-small">View / Edit</Link></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {marriages.total > 8 && <p className="hint">Showing 8 of {marriages.total}. <Link href={`/matrimony?q=${encodeURIComponent(q)}`}>See all {marriages.total} →</Link></p>}
+        </div>
+      )}
 
       {hits.map(({ d, res }) => {
         const first = d.fields.find((f) => f.key === d.listColumns[0])!;

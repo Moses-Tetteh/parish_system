@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { requireUser } from "@/lib/auth/session";
 import { roleCan } from "@/lib/auth/permissions";
 import { allRegisters, resolveTable } from "@/lib/registers/registry";
+import { MARRIAGE_DEF } from "@/lib/matrimony/fields";
 import { NavIcon, RosaryDivider, SacIcon } from "@/components/icons";
 
 export const metadata = { title: "Dashboard" };
@@ -14,6 +15,7 @@ const TILES: { key: string; label: string; sac?: string; nav?: string }[] = [
   { key: "baptism", label: "Baptism", sac: "baptism" },
   { key: "communion", label: "First Communion", sac: "communion" },
   { key: "confirmation", label: "Confirmation", sac: "confirmation" },
+  { key: "matrimony", label: "Holy Matrimony", sac: "matrimony" },
   { key: "death", label: "Death", sac: "death" },
   { key: "parish_priests", label: "Parish Priests", nav: "user" },
   { key: "holy_orders", label: "Holy Orders", nav: "book" },
@@ -39,6 +41,7 @@ export default async function Dashboard() {
   }
 
   const defs = new Map(allRegisters().map((d) => [d.key, d]));
+  defs.set(MARRIAGE_DEF.key, MARRIAGE_DEF); // Holy Matrimony has its own pages but counts like any register
   const tiles = TILES.filter((t) => { const d = defs.get(t.key); return d && roleCan(user.role, d.permission); });
 
   // One COUNT per register, in parallel; a failure in one tile shows "—" and never blanks the page.
