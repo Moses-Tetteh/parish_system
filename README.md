@@ -31,3 +31,6 @@ src/lib/auth/         sessions, roles, passwords   src/lib/registers/   definiti
 src/app/              pages, server actions, API   tests/     unit + end-to-end
 .github/workflows/    CI, encrypted nightly backup tools/     PHP definition exporter (one-off)
 ```
+
+## Modules
+See `MIGRATION.md` for what is ported from the PHP app, what is intentionally not, and how to run the test suites.
