@@ -1,10 +1,11 @@
+import { parishTimeZone } from "@/lib/dates";
 import "server-only";
 import { eq } from "drizzle-orm";
 import { schema, type Executor } from "@/db";
 import { logAudit } from "@/lib/audit";
 
 const stamp = () =>
-  new Intl.DateTimeFormat("en-GB", { timeZone: process.env.TZ || "Africa/Accra", day: "2-digit", month: "short", year: "numeric" }).format(new Date());
+  new Intl.DateTimeFormat("en-GB", { timeZone: parishTimeZone(), day: "2-digit", month: "short", year: "numeric" }).format(new Date());
 
 /**
  * Marginal notation (Canon 535 §2): when a person is married (or confirmed / ordained) the parish

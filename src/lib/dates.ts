@@ -33,6 +33,25 @@ export function formatDate(value: string | null | undefined): string {
   return `${d} ${monthName(m)} ${y}`;
 }
 
-export function todayIso(tz = process.env.TZ || "Africa/Accra"): string {
+const FALLBACK_TZ = "Africa/Accra";
+const tzCache = new Map<string, string>();
+
+/**
+ * The time zone "today" is computed in. Reads APP_TIMEZONE, then TZ, and ALWAYS returns something Intl accepts:
+ * hosts such as Vercel set TZ=":UTC" (valid for the OS, a RangeError for JavaScript), so a leading ":" is stripped,
+ * and anything still invalid falls back to Africa/Accra (UTC+0 all year, same as UTC).
+ */
+export function parishTimeZone(): string {
+  const raw = (process.env.APP_TIMEZONE || process.env.TZ || "").trim();
+  const hit = tzCache.get(raw);
+  if (hit) return hit;
+  const candidate = raw.replace(/^:/, "") || FALLBACK_TZ;
+  let tz = FALLBACK_TZ;
+  try { new Intl.DateTimeFormat("en-CA", { timeZone: candidate }); tz = candidate; } catch { /* unusable value: keep the fallback */ }
+  tzCache.set(raw, tz);
+  return tz;
+}
+
+export function todayIso(tz = parishTimeZone()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
