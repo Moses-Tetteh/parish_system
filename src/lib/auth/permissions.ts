@@ -23,6 +23,7 @@ export const PERMISSION_ROLES = {
   "audit.view": ["admin"],
   "access_log.view": ["admin"],
   "users.manage": ["admin"],
+  "settings.manage": ["admin"],
   // Financial split (PHP: enforce_financial_role_scope)
   "financials.core": ["secretary", "priest", "admin"], // categories, budgeting, setup
   "financials.transactions": ["secretary", "priest", "admin", "ppc_secretary"], // scoped by category for secretary / ppc

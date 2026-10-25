@@ -7,6 +7,7 @@ import { PAGE_SIZE, listRecords } from "@/lib/registers/repository";
 import { displayValue } from "@/lib/registers/view";
 import { isValidIsoDate } from "@/lib/dates";
 import { ConfirmForm } from "@/components/ConfirmForm";
+import { IndexHeader, RowActions } from "@/components/RegisterHooks";
 import { archiveAction, deleteAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +67,9 @@ export default async function RegisterList({ params, searchParams }: { params: P
     <>
       <h1>{def.title}</h1>
       {def.intro && <p className="hint">{def.intro}</p>}
+      <IndexHeader registerKey={key} user={user} />
+      {one(sp.ok) && <div role="status" className="flash flash-success">{one(sp.ok).slice(0, 300)}</div>}
+      {one(sp.note) && <div role="status" className="flash flash-info">⚠ {one(sp.note).slice(0, 600)}</div>}
       {one(sp.saved) && <div role="status" className="flash flash-success">Record saved.</div>}
       {one(sp.deleted) && <div role="status" className="flash flash-success">Record deleted.</div>}
 
@@ -98,6 +102,12 @@ export default async function RegisterList({ params, searchParams }: { params: P
         </form>
         <Link href={`/registers/${key}/new`} className="btn">➕ Add Record</Link>
         {canExport && <a href={`/registers/${key}/export${qs({})}`} className="btn btn-secondary">⬇ Export CSV</a>}
+        {key === "parishioners" && (<>
+          <Link href="/parishioners/duplicates" className="btn btn-secondary">Possible duplicates</Link>
+          <Link href="/parishioners/sync" className="btn btn-secondary">Sync from registers</Link>
+          <Link href="/parishioners/import-households" className="btn btn-secondary">Import from households</Link>
+          {roleCan(user.role, "sensitive.irregular") && <Link href="/parishioners/irregular" className="btn btn-secondary">🔒 Marriages to regularise</Link>}
+        </>)}
         <Link href={`/registers/${key}${qs({ archived: archived ? "" : "1", page: "" })}`} className="btn btn-secondary">{archived ? "Show Active" : "Show Archived"}</Link>
       </div>
 
@@ -122,6 +132,7 @@ export default async function RegisterList({ params, searchParams }: { params: P
                   {st && <td><span className={`badge badge-${st}`}>{st === "current" ? "Serving" : "Past"}</span></td>}
                   <td className="row-actions">
                     <Link href={`/registers/${key}/${r.id}`} className="btn btn-small">Edit</Link>
+                    <RowActions registerKey={key} id={Number(r.id)} />
                     <ConfirmForm action={archiveAction.bind(null, key, r.id, !archived)} message={`${archived ? "Restore" : "Archive"} this record?`}>
                       <button type="submit" className="btn btn-small btn-danger">{archived ? "Restore" : "Archive"}</button>
                     </ConfirmForm>

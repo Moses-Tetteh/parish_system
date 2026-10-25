@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth/session";
@@ -34,7 +35,15 @@ export default async function Dashboard() {
         <div className="hero">
           <div className="eyebrow">Welcome, {name}</div>
           <h1>PPC Secretary Dashboard</h1>
-          <p>The Members &amp; Dues area is part of the financial module, which is still being ported (see MIGRATION.md, phase 2).</p>
+          <p>Members, dues and the offering/dues ledger are the parts of the system open to you.</p>
+        </div>
+        <div className="stat-grid">
+          {[["/financials/members", "Members", "users"], ["/financials/dues", "Dues", "coins"], ["/financials", "Transactions", "coins"], ["/financials/statement", "Financial Statement", "book"]].map(([href, label, icon]) => (
+            <Link className="stat-card" href={href!} key={href}>
+              <div className="stat-icon"><NavIcon name={icon!} size={16} /></div>
+              <div className="stat-label">{label}</div>
+            </Link>
+          ))}
         </div>
       </>
     );

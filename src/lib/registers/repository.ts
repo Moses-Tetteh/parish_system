@@ -1,3 +1,4 @@
+import { syncRecordSafe } from "@/lib/parishioners/sync";
 import "server-only";
 import { and, asc, desc, eq, gte, ilike, isNotNull, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
@@ -112,7 +113,11 @@ function toProps(def: RegisterDef, values: Values): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(values)) {
     const c = t.columns.get(k);
-    if (c) out[c.prop] = v;
+    if (!c) continue;
+    // An empty value for a NOT NULL column that has a database default means "use the default" (never an explicit NULL, which the database rejects).
+    const col = c.col as { notNull?: boolean; hasDefault?: boolean };
+    if ((v === null || v === undefined) && col.notNull && col.hasDefault) continue;
+    out[c.prop] = v;
   }
   // The Parishioners sync matches people on the normalised name, so it is derived on every write (never typed).
   if (def.key === "parishioners" && typeof values.full_name === "string") {
@@ -122,18 +127,27 @@ function toProps(def: RegisterDef, values: Values): Record<string, unknown> {
   return out;
 }
 
+/** Registers whose entries are mirrored onto the Parishioners list (matrimony has its own save path in lib/matrimony). */
+const SYNCED_TABLES = { baptism_records: "baptism", communion_records: "communion", confirmation_records: "confirmation", holy_orders: "holy_orders" } as const;
+async function syncAfterWrite(def: RegisterDef, id: number, username: string): Promise<void> {
+  const type = SYNCED_TABLES[def.table as keyof typeof SYNCED_TABLES];
+  if (type) await syncRecordSafe(type, id, username); // runs after the entry is committed, in its own transaction, and never throws
+}
+
 export async function createRecord(def: RegisterDef, user: SessionUser, values: Values): Promise<number> {
   assertAllowed(def, user);
   const t = resolveTable(def.table);
   const props = toProps(def, values);
   if (t.columns.has("created_by")) props[t.columns.get("created_by")!.prop] = user.username;
   if (t.columns.has("updated_by")) props[t.columns.get("updated_by")!.prop] = user.username;
-  return db().transaction(async (tx) => {
+  const id = await db().transaction(async (tx) => {
     const [row] = await tx.insert(t.table).values(props as never).returning({ id: t.columns.get("id")!.col });
-    const id = Number((row as { id: number }).id);
-    await logAudit({ table: def.table, recordId: id, action: "create", username: user.username, details: values }, tx);
-    return id;
+    const newId = Number((row as { id: number }).id);
+    await logAudit({ table: def.table, recordId: newId, action: "create", username: user.username, details: values }, tx);
+    return newId;
   });
+  await syncAfterWrite(def, id, user.username);
+  return id;
 }
 
 /**
@@ -153,12 +167,14 @@ export async function updateRecord(def: RegisterDef, user: SessionUser, id: numb
     else if (isValidVersion(version)) guards.push(sql`${verCol} = ${version}::timestamptz`);
     else return "conflict";
   }
-  return db().transaction(async (tx) => {
+  const result = await db().transaction(async (tx) => {
     const rows = await tx.update(t.table).set(props as never).where(and(...guards)).returning({ id: idCol });
     if (rows.length === 0) return "conflict" as const;
     await logAudit({ table: def.table, recordId: id, action: "update", username: user.username, details: values }, tx);
     return "ok" as const;
   });
+  if (result === "ok") await syncAfterWrite(def, id, user.username);
+  return result;
 }
 
 export async function setArchived(def: RegisterDef, user: SessionUser, id: number, archived: boolean): Promise<void> {
@@ -168,6 +184,7 @@ export async function setArchived(def: RegisterDef, user: SessionUser, id: numbe
     await tx.update(t.table).set({ [t.columns.get("is_archived")!.prop]: archived ? 1 : 0 } as never).where(eq(t.columns.get("id")!.col, id));
     await logAudit({ table: def.table, recordId: id, action: archived ? "archive" : "restore", username: user.username }, tx);
   });
+  if (!archived) await syncAfterWrite(def, id, user.username); // a restored entry rejoins the list
 }
 
 export async function deleteRecord(def: RegisterDef, user: SessionUser, id: number): Promise<void> {

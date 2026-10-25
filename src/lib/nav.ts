@@ -32,6 +32,7 @@ export const NAV: NavGroup[] = [
       { href: "/registers/marriage_prep", label: "Marriage Preparation", permission: "registers" },
       { href: "/registers/candidates", label: "Sacrament Prep & RCIA", permission: "registers" },
       { href: "/registers/sick_calls", label: "Sick & Anointing", permission: "sensitive.sick" },
+      { href: "/notifications", label: "Baptism Notifications", permission: "notifications" },
       { href: "/certificates", label: "Certificate Log", permission: "registers" },
     ],
   },
@@ -39,6 +40,7 @@ export const NAV: NavGroup[] = [
     label: "Parish Life", icon: "users",
     items: [
       { href: "/registers/parishioners", label: "Parishioners", permission: "registers" },
+      { href: "/households", label: "Households", permission: "registers" },
       { href: "/registers/outstations", label: "Outstations", permission: "registers" },
       { href: "/registers/societies", label: "Societies & Groups", permission: "registers" },
       { href: "/registers/catechesis_teachers", label: "Catechists", permission: "registers" },
@@ -50,19 +52,26 @@ export const NAV: NavGroup[] = [
     label: "Liturgy", icon: "calendar",
     items: [
       { href: "/registers/mass_times", label: "Mass Times", permission: "registers" },
+      { href: "/calendar", label: "Liturgical Calendar", permission: "registers" },
+      { href: "/roster", label: "Ministry Roster", permission: "registers" },
+      { href: "/announcements", label: "Announcements", permission: "registers" },
       { href: "/registers/liturgical_days", label: "Feast Days", permission: "registers" },
     ],
   },
   {
     label: "Finance & Property", icon: "coins",
     items: [
+      { href: "/financials", label: "Financials", permission: "financials.transactions" },
+      { href: "/levy", label: "Diocesan Remittances", permission: "levy.view" },
       { href: "/registers/church_property", label: "Church Property", permission: "registers" },
     ],
   },
   {
     label: "Admin", icon: "settings",
     items: [
+      { href: "/reports/annual", label: "Annual Statistical Report", permission: "reports.annual" },
       { href: "/admin/users", label: "Manage Users", permission: "users.manage" },
+      { href: "/admin/settings", label: "Settings", permission: "settings.manage" },
       { href: "/admin/audit", label: "Audit Trail", permission: "audit.view" },
       { href: "/admin/access-log", label: "Access Log", permission: "access_log.view" },
     ],
@@ -72,6 +81,8 @@ export const NAV: NavGroup[] = [
 const allowed = (role: Role, p?: Permission) => !p || roleCan(role, p);
 
 export function visibleNav(role: Role): { top: NavTopItem[]; groups: NavGroup[] } {
+  // The PPC Secretary sees only the Dashboard and Financials, as in the PHP header.
+  if (role === "ppc_secretary") return { top: [NAV_TOP[0]!, { href: "/financials", label: "Financials", icon: "coins" }], groups: [] };
   return {
     top: NAV_TOP.filter((i) => allowed(role, i.permission)),
     groups: NAV.map((g) => ({ ...g, items: g.items.filter((i) => allowed(role, i.permission)) })).filter((g) => g.items.length),

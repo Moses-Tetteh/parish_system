@@ -15,21 +15,21 @@ export interface CertificateInput {
 }
 
 // The parish palette (cardinal maroon + antique gold), as in the app.
-const MAROON = rgb(0.43, 0.08, 0.14);
-const GOLD = rgb(0.65, 0.47, 0.12);
-const INK = rgb(0.11, 0.13, 0.19);
-const GREY = rgb(0.38, 0.4, 0.45);
-const RULE = rgb(0.82, 0.8, 0.74);
+export const MAROON = rgb(0.43, 0.08, 0.14);
+export const GOLD = rgb(0.65, 0.47, 0.12);
+export const INK = rgb(0.11, 0.13, 0.19);
+export const GREY = rgb(0.38, 0.4, 0.45);
+export const RULE = rgb(0.82, 0.8, 0.74);
 
 const W = 595.28, H = 841.89, MARGIN = 62;
 
 /** Replace anything the embedded font cannot draw so a stray symbol never breaks the whole certificate. */
-function safe(font: PDFFont, text: string): string {
+export function safe(font: PDFFont, text: string): string {
   const set = new Set(font.getCharacterSet());
   return [...text.replace(/[\r\n\t]+/g, " ")].map((ch) => (set.has(ch.codePointAt(0)!) ? ch : "?")).join("");
 }
 
-function wrap(font: PDFFont, text: string, size: number, maxWidth: number): string[] {
+export function wrap(font: PDFFont, text: string, size: number, maxWidth: number): string[] {
   const lines: string[] = [];
   let line = "";
   for (const word of safe(font, text).split(/\s+/).filter(Boolean)) {
